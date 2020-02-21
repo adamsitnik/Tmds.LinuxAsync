@@ -66,6 +66,7 @@ namespace Tmds.LinuxAsync
                     // Aio
                     aio_context_t ctx;
                     int rv = io_setup(NrEvents, &ctx);
+                    Console.WriteLine($"The io_setup result is: {rv}");
                     if (rv == -1)
                     {
                         PlatformException.Throw();
