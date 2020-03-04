@@ -78,6 +78,7 @@ namespace Tmds.LinuxAsync
                         iouring.ExecuteCompletions();
 
                         ExecuteScheduledActions();
+                        Console.WriteLine();
                     }
 
                     // Execute actions that got posted before we were disposed.
