@@ -271,7 +271,7 @@ namespace Tmds.LinuxAsync
                 }
             }
 
-            public void ExecuteCompletions()
+            public unsafe void ExecuteCompletions()
             {
                 while (_ring!.TryRead(out Completion completion))
                 {
@@ -280,6 +280,8 @@ namespace Tmds.LinuxAsync
                     ulong key = completion.userData;
                     if (_operations.Remove(key, out Operation? op))
                     {
+                        Console.WriteLine($"Removed: {op.OperationType} {op.Memory.Length} {new IntPtr(op.MemoryHandle.Pointer).ToInt64()}");
+
                         // Clean up
                         op.MemoryHandle.Dispose();
 
