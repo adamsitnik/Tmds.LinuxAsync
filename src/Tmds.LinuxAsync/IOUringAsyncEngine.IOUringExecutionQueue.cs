@@ -186,6 +186,9 @@ namespace Tmds.LinuxAsync
                                 // Poll first, in case the fd is non-blocking.
                                 ring.PreparePollAdd(fd, (ushort)POLLIN, key | MaskBit, options: SubmissionOption.Link);
                                 ring.PrepareReadV(fd, (iovec*)Unsafe.AsPointer(ref iovs[iovIndex]), 1, userData: key);
+
+                                Console.WriteLine($"Scheduled read {iovs[iovIndex].iov_len} bytes to {new IntPtr(iovs[iovIndex].iov_base).ToInt64()}");
+
                                 iovIndex++;
                                 break;
                             }
@@ -201,6 +204,8 @@ namespace Tmds.LinuxAsync
                                 // Poll first, in case the fd is non-blocking.
                                 ring.PreparePollAdd(fd, (ushort)POLLOUT, key | MaskBit, options: SubmissionOption.Link);
                                 ring.PrepareWriteV(fd, (iovec*)Unsafe.AsPointer(ref iovs[iovIndex]), 1, userData: key);
+
+                                Console.WriteLine($"Scheduled write {iovs[iovIndex].iov_len} bytes from {new IntPtr(iovs[iovIndex].iov_base).ToInt64()}");
                                 iovIndex++;
                                 break;
                             }
