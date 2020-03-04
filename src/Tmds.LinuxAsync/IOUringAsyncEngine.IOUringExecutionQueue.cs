@@ -2,7 +2,9 @@ using System;
 using System.Buffers;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Threading;
 using IoUring;
 using Tmds.Linux;
 using static Tmds.Linux.LibC;
@@ -162,7 +164,7 @@ namespace Tmds.LinuxAsync
                 Ring ring = _ring!;
                 int iovIndex = _iovsUsed;
                 int sqesAvailable = ring.SubmissionEntriesAvailable;
-                iovec* iovs = IoVectorTable;
+                Span<iovec> iovs = new Span<iovec>(IoVectorTable, _iovsLength);
                 for (int i = 0; (i < _newOperations.Count) && (sqesAvailable > 2) && (iovIndex < _iovsLength); i++)
                 {
                     _newOperationsQueued++;
@@ -176,24 +178,30 @@ namespace Tmds.LinuxAsync
                             {
                                 MemoryHandle handle = op.Memory.Pin();
                                 op.MemoryHandle = handle;
-                                iovec* iov = &iovs[iovIndex++]; // Linux 5.6 doesn't need an iovec (IORING_OP_READ)
-                                *iov = new iovec { iov_base = handle.Pointer, iov_len = op.Memory.Length };
+                                Thread.MemoryBarrier();
+                                // Linux 5.6 doesn't need an iovec (IORING_OP_READ)
+                                iovs[iovIndex].iov_base = handle.Pointer;
+                                iovs[iovIndex].iov_len = op.Memory.Length;
                                 sqesAvailable -= 2;
                                 // Poll first, in case the fd is non-blocking.
                                 ring.PreparePollAdd(fd, (ushort)POLLIN, key | MaskBit, options: SubmissionOption.Link);
-                                ring.PrepareReadV(fd, iov, 1, userData: key);
+                                ring.PrepareReadV(fd, (iovec*)Unsafe.AsPointer(ref iovs[iovIndex]), 1, userData: key);
+                                iovIndex++;
                                 break;
                             }
                         case OperationType.Write:
                             {
                                 MemoryHandle handle = op.Memory.Pin();
                                 op.MemoryHandle = handle;
-                                iovec* iov = &iovs[iovIndex++]; // Linux 5.6 doesn't need an iovec (IORING_OP_WRITE)
-                                *iov = new iovec { iov_base = handle.Pointer, iov_len = op.Memory.Length };
+                                Thread.MemoryBarrier();
+                                // Linux 5.6 doesn't need an iovec (IORING_OP_WRITE)
+                                iovs[iovIndex].iov_base = handle.Pointer;
+                                iovs[iovIndex].iov_len = op.Memory.Length;
                                 sqesAvailable -= 2;
                                 // Poll first, in case the fd is non-blocking.
                                 ring.PreparePollAdd(fd, (ushort)POLLOUT, key | MaskBit, options: SubmissionOption.Link);
-                                ring.PrepareWriteV(fd, iov, 1, userData: key);
+                                ring.PrepareWriteV(fd, (iovec*)Unsafe.AsPointer(ref iovs[iovIndex]), 1, userData: key);
+                                iovIndex++;
                                 break;
                             }
                         case OperationType.PollIn:
