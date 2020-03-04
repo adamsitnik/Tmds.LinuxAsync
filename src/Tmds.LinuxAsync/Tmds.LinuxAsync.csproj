@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>netcoreapp5.0</TargetFramework>
     <LangVersion>latest</LangVersion>
@@ -6,7 +6,7 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="IoUring" Version="0.1.0-*" />
+    <PackageReference Include="IoUring" Version="0.1.0-1582655385" />
     <PackageReference Include="Tmds.LibC" Version="0.4.0" />
   </ItemGroup>
 </Project>
