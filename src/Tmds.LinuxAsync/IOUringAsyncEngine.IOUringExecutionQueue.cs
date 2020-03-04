@@ -15,7 +15,6 @@ namespace Tmds.LinuxAsync
         {
             private const ulong MaskBit = 1UL << 63;
             private const ulong IgnoredData = ulong.MaxValue | MaskBit;
-            private const int MemoryAlignment = 8;
             private const int SubmissionQueueRequestedLength = 512; // TODO
             // private const int CompletionQueueLength = CompletionQueueLength; // TODO
             Ring? _ring;
@@ -52,8 +51,7 @@ namespace Tmds.LinuxAsync
             private int _iovsUsed;
             private int _iovsLength;
             private bool _disposed;
-            private readonly IntPtr _ioVectorTableMemory;
-            private unsafe iovec* IoVectorTable => (iovec*)Align(_ioVectorTableMemory);
+            private readonly unsafe iovec* IoVectorTable;
 
             public unsafe IOUringExecutionQueue() :
                 base(supportsPolling: true)
@@ -72,8 +70,13 @@ namespace Tmds.LinuxAsync
                     {
                         throw new NotSupportedException("io_uring IORING_FEAT_SUBMIT_STABLE is needed.");
                     }
+                    if (_ring.SubmissionQueueSize != SubmissionQueueRequestedLength)
+                    {
+                        throw new InvalidOperationException($"Allocated {_ring.SubmissionQueueSize} instead of {SubmissionQueueRequestedLength}");
+                    }
+
                     _iovsLength = _ring.SubmissionQueueSize; // TODO
-                    _ioVectorTableMemory = AllocMemory(SizeOf.iovec * _iovsLength);
+                    IoVectorTable = (iovec*)AllocateClearMemory(sizeof(iovec) * _iovsLength);
                 }
                 catch
                 {
@@ -298,9 +301,9 @@ namespace Tmds.LinuxAsync
 
                 _ring?.Dispose();
 
-                if (_ioVectorTableMemory != IntPtr.Zero)
+                if (IoVectorTable != null)
                 {
-                    Marshal.FreeHGlobal(_ioVectorTableMemory);
+                    Marshal.FreeHGlobal(new IntPtr(IoVectorTable));
                 }
             }
 
@@ -314,38 +317,10 @@ namespace Tmds.LinuxAsync
                 }
             }
 
-            private unsafe byte* Align(IntPtr p)
+            private unsafe IntPtr AllocateClearMemory(int length)
             {
-                ulong pointer = (ulong)p;
-                pointer += MemoryAlignment - 1;
-                pointer &= ~(ulong)(MemoryAlignment - 1);
-                return (byte*)pointer;
-            }
-
-            private unsafe IntPtr AllocMemory(int length)
-            {
-                int allocatedLength = length + MemoryAlignment - 1;
-                IntPtr res = Marshal.AllocHGlobal(allocatedLength);
-                if (res == IntPtr.Zero)
-                {
-                    ThrowHelper.ThrowIndexOutOfRange(res);
-                }
-                byte* alignedStart = Align(res);
-                {
-                    byte* start = (byte*)res.ToPointer();
-                    byte* end = start + allocatedLength;
-                    if (alignedStart < start || alignedStart >= end)
-                    {
-                        ThrowHelper.ThrowIndexOutOfRange(res);
-                    }
-                    byte* alignedEnd = alignedStart + length;
-                    if (alignedEnd > end)
-                    {
-                        ThrowHelper.ThrowIndexOutOfRange(length);
-                    }
-                }
-                Span<byte> span = new Span<byte>(alignedStart, length);
-                span.Clear();
+                IntPtr res = Marshal.AllocHGlobal(length);
+                new Span<byte>(res.ToPointer(), length).Clear();
                 return res;
             }
 
