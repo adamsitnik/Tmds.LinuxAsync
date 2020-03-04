@@ -250,6 +250,8 @@ namespace Tmds.LinuxAsync
                 // io_uring_enter
                 SubmitResult result = _ring!.SubmitAndWait(minComplete: waitForCompletion ? 1U : 0, out _);
 
+                Console.WriteLine($"Submit result: {result}");
+
                 if (result == SubmitResult.SubmittedSuccessfully) // likely case: all sqes were queued
                 {
                     _iovsUsed = 0;
@@ -273,6 +275,8 @@ namespace Tmds.LinuxAsync
             {
                 while (_ring!.TryRead(out Completion completion))
                 {
+                    Console.WriteLine($"TryRead returned completion: result={completion.result} userData={completion.userData}");
+
                     ulong key = completion.userData;
                     if (_operations.Remove(key, out Operation? op))
                     {
